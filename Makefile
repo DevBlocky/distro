@@ -7,7 +7,7 @@ SRC_DIR := .
 ROOTFS := rootfs
 
 SBINS := init
-BINS := sh echo ls cat env sleep
+BINS := sh echo ls cat env sleep segfault
 
 .PHONY: all build rootfs clean-rootfs docker-build docker-run clean
 

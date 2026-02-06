@@ -252,7 +252,7 @@ static pid_t execcommand(const struct command *cmd, int in, int out) {
   }
   execvp(cmdstr, cmd->argv);
   fprintf(stderr, "(%s exec: %s)\n", cmdstr, strerror(errno));
-  exit(127); // kill child process on failure
+  abort();
 }
 static int execpipeline(const struct pipeline *p) {
   pid_t *pids = malloc(p->len * sizeof(pids));
@@ -300,9 +300,22 @@ static int execpipeline(const struct pipeline *p) {
   }
 
   // wait for last in pipeline to finish
-  for (size_t i = 0; i < p->len; i++)
-    if (pids[i] > 0)
-      waitpid(pids[i], NULL, 0);
+  for (size_t i = 0; i < p->len; i++) {
+    if (pids[i] <= 0)
+      continue;
+    char *cmdname = p->cmds[i].argv[0];
+    int status;
+    if (waitpid(pids[i], &status, 0) < 0) {
+      fprintf(stderr, "(%s: wait failed: %s)\n", cmdname, strerror(errno));
+      continue;
+    }
+    if (WIFSIGNALED(status)) {
+      if (WTERMSIG(status) == SIGSEGV)
+        fprintf(stderr, "(%s: segmentation fault)\n", cmdname);
+      if (WTERMSIG(status) == SIGABRT)
+        fprintf(stderr, "(%s: aborted)\n", cmdname);
+    }
+  }
   return 0;
 }
 
@@ -326,9 +339,6 @@ int main(void) {
       printf("sh: could not read input: %s\n", strerror(errno));
       return EXIT_FAILURE;
     }
-    // // TODO: move this to builtin-command thingy
-    // if (strcmp(line, "exit\n") == 0)
-    //   return EXIT_SUCCESS;
 
     // tokenize then parse pipeline
     struct tokens tokens = {0};
