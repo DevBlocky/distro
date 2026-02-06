@@ -1,3 +1,3 @@
 FROM scratch
-COPY rootfs/ /
+COPY --chown=root:root rootfs/ /
 ENTRYPOINT ["/usr/sbin/init"]

@@ -1,5 +1,17 @@
 {
   "name": "distro-dev",
   "build": { "dockerfile": "Dockerfile", "context": ".." },
-  "runArgs": ["-v", "/var/run/docker.sock:/var/run/docker.sock"]
+  "runArgs": [
+    "-v",
+    "/var/run/docker.sock:/var/run/docker.sock"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.makefile-tools"
+      ]
+    }
+  }
 }
