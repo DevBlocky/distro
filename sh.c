@@ -215,8 +215,7 @@ static int execbuiltin(enum builtin typ, size_t argc, char **argv) {
       return -16;
     res = chdir(argv[1]);
     if (res < 0)
-      fprintf(stderr, "(cd: %s)\n",
-              strerror(errno));
+      fprintf(stderr, "(cd: %s)\n", strerror(errno));
     break;
   }
   return res;

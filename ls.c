@@ -18,22 +18,20 @@ struct listent {
 };
 
 char filetype(mode_t m) {
-  switch (m & S_IFMT) {
-  case S_IFREG:
+  if (S_ISREG(m))
     return '-';
-  case S_IFDIR:
+  if (S_ISDIR(m))
     return 'd';
-  case S_IFCHR:
+  if (S_ISCHR(m))
     return 'c';
-  case S_IFBLK:
+  if (S_ISBLK(m))
     return 'b';
-  case S_IFIFO:
+  if (S_ISFIFO(m))
     return 'p';
-  case S_IFLNK:
+  if (S_ISLNK(m))
     return 'l';
-  case S_IFSOCK:
+  if (S_ISSOCK(m))
     return 's';
-  }
   return '?';
 }
 void fileperm(mode_t m, char *s) {
@@ -87,16 +85,32 @@ int main(int argc, char **argv) {
     ent->gid = statbuf.st_gid;
   }
 
+  // sort dir entries by name
+  // this is selection sort, probably should use something else but idc
+  for (size_t i = 0; i < len; i++) {
+    size_t mini = i;
+    for (size_t j = i + 1; j < len; j++) {
+      if (strcmp(list[j].name, list[mini].name) < 0)
+        mini = j;
+    }
+    if (mini != i) {
+      struct listent tmp = list[i];
+      list[i] = list[mini];
+      list[mini] = tmp;
+    }
+  }
+
   // print the list of directory entries
   for (size_t i = 0; i < len; i++) {
-    mode_t m = list[i].mode;
+    struct listent *ent = &list[i];
     char perm[16];
-    fileperm(m, perm);
-    char typ = filetype(m);
+    fileperm(ent->mode, perm);
+    char typ = filetype(ent->mode);
 
-    // TODO: once /etc/passwd is available, print user/group names
+    // TODO: once /etc/passwd is available, print user/group names instead
+    // of id
 
-    printf("%c%s (%s) %s\n", typ, perm, "root", list[i].name);
+    printf("%c%s (%u/%u) %s\n", typ, perm, ent->uid, ent->gid, ent->name);
   }
 
   return EXIT_SUCCESS;
