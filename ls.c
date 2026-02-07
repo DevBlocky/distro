@@ -1,13 +1,13 @@
 #define _POSIX_C_SOURCE 200809L
 #include <dirent.h>
 #include <errno.h>
+#include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <grp.h>
 
 struct listent {
   ino_t inode;
@@ -54,7 +54,12 @@ void fileperm(mode_t m, char *s) {
 }
 
 int main(int argc, char **argv) {
-  DIR *d = opendir(".");
+  if (argc > 2) {
+    fprintf(stderr, "usage: %s [dir]\n", argv[0]);
+    return EXIT_FAILURE;
+  }
+
+  DIR *d = opendir(argc == 2 ? argv[1] : ".");
   if (!d) {
     fprintf(stderr, "(%s: cannot open: %s)\n", argv[0], strerror(errno));
     return EXIT_FAILURE;

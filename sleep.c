@@ -4,7 +4,7 @@
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    fprintf(stderr, "(%s: invalid arguments, must be 2)\n", argv[0]);
+    fprintf(stderr, "usage: %s <seconds>\n", argv[0]);
     return EXIT_FAILURE;
   }
   char *end;
