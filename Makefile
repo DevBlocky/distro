@@ -7,7 +7,7 @@ LDLIBS ?=
 SRC_DIR := .
 ROOTFS := rootfs
 
-SBINS := init login
+SBINS := init login kill shutdown
 BINS := sh echo ls cat env sleep segfault
 
 .PHONY: all build rootfs clean-rootfs docker-build docker-run clean

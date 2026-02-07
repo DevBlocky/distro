@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -10,7 +11,14 @@
 
 extern char **environ;
 
+static void onterm(int sig) { _exit(0); }
+
 int main(void) {
+  struct sigaction sa = {0};
+  sa.sa_handler = onterm;
+  sigaction(SIGTERM, &sa, NULL);
+  sigaction(SIGINT, &sa, NULL);
+
   pid_t pid = getpid();
   if (pid != 1) {
     fprintf(stderr, "(init: can only be run as pid=1)\n");
@@ -37,11 +45,6 @@ int main(void) {
       fprintf(stderr, "(init: cannot wait: %s)\n", strerror(errno));
       abort();
     }
-
-    // if child exited gracefully, then we are done :)
-    // FIXME: don't exit on successful child
-    if (WIFEXITED(status))
-      return EXIT_SUCCESS;
     // log if child exited with bad condition
     if (WIFSIGNALED(status)) {
       if (WTERMSIG(status) == SIGSEGV)
