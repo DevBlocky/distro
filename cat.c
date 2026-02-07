@@ -23,6 +23,7 @@ int main(int argc, char **argv) {
         if (fd < 0) {
           fprintf(stderr, "(%s: could not open %s: %s)\n", argv[0], files[i],
                   strerror(errno));
+          i++;
           continue;
         }
       } else {
