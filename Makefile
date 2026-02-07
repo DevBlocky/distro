@@ -2,11 +2,12 @@ IMAGE ?= distro-init
 CC ?= cc
 CFLAGS ?= -O2 -pipe
 LDFLAGS ?=
+LDLIBS ?=
 
 SRC_DIR := .
 ROOTFS := rootfs
 
-SBINS := init
+SBINS := init login
 BINS := sh echo ls cat env sleep segfault
 
 .PHONY: all build rootfs clean-rootfs docker-build docker-run clean
@@ -14,13 +15,16 @@ BINS := sh echo ls cat env sleep segfault
 all: rootfs
 
 SBIN_TARGETS := $(addprefix $(ROOTFS)/usr/sbin/,$(SBINS))
+# login uses crypt(3)
+$(ROOTFS)/usr/sbin/login: LDLIBS += -lcrypt
 $(ROOTFS)/usr/sbin/%: %.o
 	@mkdir -p $(@D)
-	$(CC) $(LDFLAGS) $^ -o $@
+	$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+
 BIN_TARGETS := $(addprefix $(ROOTFS)/usr/bin/,$(BINS))
 $(ROOTFS)/usr/bin/%: %.o
 	@mkdir -p $(@D)
-	$(CC) $(LDFLAGS) $^ -o $@
+	$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 ALL_TARGETS := $(SBIN_TARGETS) $(BIN_TARGETS)
 build: $(ALL_TARGETS)
@@ -29,6 +33,7 @@ rootfs: $(ALL_TARGETS)
 	@for bin in $(ALL_TARGETS); do \
 		./scripts/copy-libs.sh $$bin $(ROOTFS); \
 	done
+	@cp -a ./etc ./$(ROOTFS)/
 
 Dockerfile: ;
 

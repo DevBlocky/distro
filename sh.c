@@ -12,6 +12,7 @@
 #include <assert.h>
 
 extern char **environ;
+char *shname;
 
 static void strappend(char **buf, size_t *len, size_t *cap, char c) {
   if (*len >= *cap) {
@@ -116,12 +117,12 @@ static void freepipeline(struct pipeline *p) {
 static int parseredir(const struct tokens *tokens, size_t *i,
                       struct command *cmd, const char *op) {
   if (*i >= tokens->len) {
-    fprintf(stderr, "(empty redirection)\n");
+    fprintf(stderr, "(%s: empty redirection)\n", shname);
     return -2;
   }
   struct tok target = tokens->data[(*i)++];
   if (!target.literal && isoperator(target.str[0])) {
-    fprintf(stderr, "(bad redirection target)\n");
+    fprintf(stderr, "(%s: bad redirection target)\n", shname);
     return -2;
   }
   if (op[0] == '<')
@@ -158,7 +159,7 @@ static int mkpipeline(const struct tokens *tokens, struct pipeline *out) {
 
       // arguments are not allowed after redirection
       if (cmd.fin || cmd.fout) {
-        fprintf(stderr, "(unexpected token \"%s\" after command)\n", tok.str);
+        fprintf(stderr, "(%s: unexpected token \"%s\" after command)\n", shname, tok.str);
         err = -3;
         goto done;
       }
@@ -174,7 +175,7 @@ static int mkpipeline(const struct tokens *tokens, struct pipeline *out) {
   done:
     // add command to pipeline
     if (cmd.argc == 0) {
-      fprintf(stderr, "(empty command)\n");
+      fprintf(stderr, "(%s: empty command)\n", shname);
       return -1;
     }
     cmd.argv[cmd.argc] = NULL;
@@ -183,7 +184,7 @@ static int mkpipeline(const struct tokens *tokens, struct pipeline *out) {
     if (err)
       return err;
     if (pipe && i >= tokens->len) {
-      fprintf(stderr, "(unexpected end of command)\n");
+      fprintf(stderr, "(%s: unexpected end of command)\n", shname);
       return -4;
     }
   }
@@ -215,25 +216,25 @@ static int execbuiltin(enum builtin typ, size_t argc, char **argv) {
       return -16;
     res = chdir(argv[1]);
     if (res < 0)
-      fprintf(stderr, "(cd: %s)\n", strerror(errno));
+      fprintf(stderr, "(%s: cd: %s)\n", shname, strerror(errno));
     break;
   }
   return res;
 }
 static pid_t execcommand(const struct command *cmd, int in, int out) {
-  char *cmdstr = cmd->argv[0];
-  enum builtin typ = getbuiltin(cmdstr);
+  char *cmdname = cmd->argv[0];
+  enum builtin typ = getbuiltin(cmdname);
   if (typ != BUILTIN_NONE) {
     int status = execbuiltin(typ, cmd->argc, cmd->argv);
     if (status == -16)
-      fprintf(stderr, "(%s: invalid number of arguments)\n", cmdstr);
+      fprintf(stderr, "(%s: %s: invalid number of arguments)\n", shname, cmdname);
     return status;
   }
 
   fflush(NULL); // make sure child doesn't have buffered data
   pid_t pid = fork();
   if (pid < 0) {
-    fprintf(stderr, "(%s spawn: %s)\n", cmdstr, strerror(errno));
+    fprintf(stderr, "(%s: %s spawn: %s)\n", shname, cmdname, strerror(errno));
     return -1;
   }
   if (pid != 0)
@@ -250,8 +251,8 @@ static pid_t execcommand(const struct command *cmd, int in, int out) {
     dup2(out, STDOUT_FILENO);
     close(out);
   }
-  execvp(cmdstr, cmd->argv);
-  fprintf(stderr, "(%s exec: %s)\n", cmdstr, strerror(errno));
+  execvp(cmdname, cmd->argv);
+  fprintf(stderr, "(%s: %s exec: %s)\n", shname, cmdname, strerror(errno));
   abort();
 }
 static int execpipeline(const struct pipeline *p) {
@@ -272,7 +273,7 @@ static int execpipeline(const struct pipeline *p) {
     if (cmd->fin) {
       int fd = open(cmd->fin, O_RDONLY);
       if (fd < 0) {
-        fprintf(stderr, "(could not open %s: %s)\n", cmd->fin, strerror(errno));
+        fprintf(stderr, "(%s: could not open %s: %s)\n", shname, cmd->fin, strerror(errno));
         return -1;
       }
       if (in >= 0)
@@ -282,7 +283,7 @@ static int execpipeline(const struct pipeline *p) {
     if (cmd->fout) {
       int fd = open(cmd->fout, O_WRONLY | O_CREAT | O_TRUNC, 0644);
       if (fd < 0) {
-        fprintf(stderr, "(could not open %s: %s)\n", cmd->fout,
+        fprintf(stderr, "(%s: could not open %s: %s)\n", shname, cmd->fout,
                 strerror(errno));
         return -1;
       }
@@ -306,24 +307,26 @@ static int execpipeline(const struct pipeline *p) {
     char *cmdname = p->cmds[i].argv[0];
     int status;
     if (waitpid(pids[i], &status, 0) < 0) {
-      fprintf(stderr, "(%s: wait failed: %s)\n", cmdname, strerror(errno));
+      fprintf(stderr, "(%s: %s: wait failed: %s)\n", shname, cmdname,
+              strerror(errno));
       continue;
     }
     if (WIFSIGNALED(status)) {
       if (WTERMSIG(status) == SIGSEGV)
-        fprintf(stderr, "(%s: segmentation fault)\n", cmdname);
+        fprintf(stderr, "(%s: %s: segmentation fault)\n", shname, cmdname);
       if (WTERMSIG(status) == SIGABRT)
-        fprintf(stderr, "(%s: aborted)\n", cmdname);
+        fprintf(stderr, "(%s: %s: aborted)\n", shname, cmdname);
     }
   }
   return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
   // if (isatty(STDIN_FILENO)) {
   //   signal(SIGINT, SIG_IGN);
   //   signal(SIGQUIT, SIG_IGN);
   // }
+  shname = argv[0];
 
   char *line = NULL;
   size_t linesz = 0;
@@ -336,7 +339,7 @@ int main(void) {
 
     read = getline(&line, &linesz, stdin);
     if (read < 0) {
-      printf("sh: could not read input: %s\n", strerror(errno));
+      printf("(%s: could not read input: %s)\n", shname, strerror(errno));
       return EXIT_FAILURE;
     }
 
