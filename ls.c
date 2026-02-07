@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <grp.h>
 
 struct listent {
   ino_t inode;
@@ -103,14 +104,27 @@ int main(int argc, char **argv) {
   // print the list of directory entries
   for (size_t i = 0; i < len; i++) {
     struct listent *ent = &list[i];
+
+    // print type and permissions
+    char typ = filetype(ent->mode);
     char perm[16];
     fileperm(ent->mode, perm);
-    char typ = filetype(ent->mode);
+    printf("%c%s", typ, perm);
 
-    // TODO: once /etc/passwd is available, print user/group names instead
-    // of id
+    // print user and group name (or id)
+    struct passwd *pwd = getpwuid(ent->uid);
+    if (pwd && pwd->pw_name && *pwd->pw_name)
+      printf(" (%s", pwd->pw_name);
+    else
+      printf(" (%d", ent->uid);
+    struct group *grp = getgrgid(ent->gid);
+    if (grp && grp->gr_name && *grp->gr_name)
+      printf("/%s) ", grp->gr_name);
+    else
+      printf("/%d) ", ent->gid);
 
-    printf("%c%s (%u/%u) %s\n", typ, perm, ent->uid, ent->gid, ent->name);
+    // print entry name
+    puts(ent->name);
   }
 
   return EXIT_SUCCESS;
