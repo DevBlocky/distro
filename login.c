@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-#define _DEFAULT_SOURCE
 #define _GNU_SOURCE
 #include <errno.h>
 #include <grp.h>

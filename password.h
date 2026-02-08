@@ -1,15 +1,15 @@
 #ifndef __PASSWORD_H
 #define __PASSWORD_H
 
+#include <crypt.h>
 #include <errno.h>
 #include <pwd.h>
 #include <shadow.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
-#include <unistd.h>
 
-ssize_t getpassword(char **line, size_t *len, FILE *stream) {
+static ssize_t getpassword(char **line, size_t *len, FILE *stream) {
   // disable terminal echo
   struct termios olda, newa;
   if (tcgetattr(fileno(stream), &olda) != 0)
@@ -28,7 +28,7 @@ ssize_t getpassword(char **line, size_t *len, FILE *stream) {
   return n;
 }
 
-int checkpassword(struct passwd *pwd, char *given) {
+static int checkpassword(struct passwd *pwd, char *given) {
   // get the password (either from /etc/passwd or /etc/shadow)
   char *passwd = pwd->pw_passwd;
   if (strcmp(passwd, "x") == 0) {
@@ -54,6 +54,37 @@ int checkpassword(struct passwd *pwd, char *given) {
   // compare hash of given and lookup
   char *calc = crypt(given, passwd);
   return !!calc && strcmp(calc, passwd) == 0;
+}
+
+static int newpassword(const char *plaintext, char **hash, int saltlen) {
+  static const char alphabet[] =
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  // get the raw salt from /dev/urandom
+  unsigned char saltraw[saltlen];
+  FILE *rand = fopen("/dev/urandom", "r");
+  if (!rand)
+    return -1;
+  int total = 0;
+  while (total < saltlen) {
+    ssize_t r = fread(saltraw + total, 1, saltlen - total, rand);
+    if (r <= 0)
+      return -1;
+    total += r;
+  }
+  fclose(rand);
+
+  // turn the saltraw into a setting for crypt
+  char setting[3 + saltlen + 1];
+  setting[0] = '$';
+  setting[1] = '6';
+  setting[2] = '$';
+  for (int i = 0; i < saltlen; i++)
+    setting[i + 3] = alphabet[saltraw[i] % (sizeof(alphabet) - 1)];
+  setting[saltlen + 3] = '\0';
+
+  *hash = crypt(plaintext, setting);
+  return *hash == NULL ? -1 : 0;
 }
 
 #endif // __PASSWORD_H

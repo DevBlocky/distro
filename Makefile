@@ -7,16 +7,17 @@ LDLIBS ?=
 SRC_DIR := .
 ROOTFS := rootfs
 
-SBINS := init login kill shutdown
-BINS := sh echo ls cat env sleep segfault
+SBINS := init login adduser kill shutdown
+BINS := sh echo ls cat env sleep segfault whoami
 
 .PHONY: all build rootfs clean-rootfs docker-build docker-run clean
 
 all: rootfs
 
 SBIN_TARGETS := $(addprefix $(ROOTFS)/usr/sbin/,$(SBINS))
-# login uses crypt(3)
+# login+adduser+sudo use crypt(3)
 $(ROOTFS)/usr/sbin/login: LDLIBS += -lcrypt
+$(ROOTFS)/usr/sbin/adduser: LDLIBS += -lcrypt
 $(ROOTFS)/usr/sbin/%: %.o
 	@mkdir -p $(@D)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)
