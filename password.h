@@ -9,7 +9,8 @@
 #include <string.h>
 #include <termios.h>
 
-static ssize_t getpassword(char **line, size_t *len, FILE *stream) {
+static ssize_t __attribute__((unused)) getpassword(char **line, size_t *len,
+                                                   FILE *stream) {
   // disable terminal echo
   struct termios olda, newa;
   if (tcgetattr(fileno(stream), &olda) != 0)
@@ -28,7 +29,8 @@ static ssize_t getpassword(char **line, size_t *len, FILE *stream) {
   return n;
 }
 
-static int checkpassword(struct passwd *pwd, char *given) {
+static int __attribute__((unused)) checkpassword(struct passwd *pwd,
+                                                 char *given) {
   // get the password (either from /etc/passwd or /etc/shadow)
   char *passwd = pwd->pw_passwd;
   if (strcmp(passwd, "x") == 0) {
@@ -56,7 +58,8 @@ static int checkpassword(struct passwd *pwd, char *given) {
   return !!calc && strcmp(calc, passwd) == 0;
 }
 
-static int newpassword(const char *plaintext, char **hash, int saltlen) {
+static int __attribute__((unused)) newpassword(const char *plaintext,
+                                                char **hash, int saltlen) {
   static const char alphabet[] =
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 

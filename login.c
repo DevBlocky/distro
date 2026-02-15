@@ -1,15 +1,16 @@
 #define _POSIX_C_SOURCE 200809L
 #define _GNU_SOURCE
+#include "password.h"
+#include <ctype.h>
 #include <errno.h>
 #include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
-#include "password.h"
 
 #define SH "/usr/bin/sh"
 
@@ -34,8 +35,8 @@ int main(int argc, char **argv) {
       fprintf(stderr, "(%s: cannot read: %s)\n", loginname, strerror(errno));
       abort();
     }
-    if (name[namelen - 1] == '\n')
-      name[--namelen] = '\0'; // remove trailing \n
+    while (isspace(name[namelen - 1]))
+      name[--namelen] = '\0'; // trim end
 
     printf("password: ");
     fflush(stdout);
@@ -44,8 +45,8 @@ int main(int argc, char **argv) {
       fprintf(stderr, "(%s: cannot read: %s)\n", loginname, strerror(errno));
       abort();
     }
-    if (password[passwordlen - 1] == '\n')
-      password[--passwordlen] = '\0'; // remove trailing \n
+    while (isspace(password[passwordlen - 1]))
+      password[--passwordlen] = '\0'; // trim end
 
     // get the /etc/passwd entry for the user
     errno = 0;

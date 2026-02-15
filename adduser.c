@@ -1,11 +1,13 @@
 #define _GNU_SOURCE
 #define _DEFAULT_SOURCE
 #include "password.h"
+#include <ctype.h>
 #include <grp.h>
 #include <pwd.h>
 #include <shadow.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -34,7 +36,6 @@ int main(int argc, char **argv) {
 
   // get password and confirm it
   char *password = NULL;
-  ssize_t passwordlen = 0;
   for (int i = 0; i < 2; i++) {
     char *p = NULL;
     size_t cap = 0;
@@ -48,19 +49,17 @@ int main(int argc, char **argv) {
       fprintf(stderr, "(%s: cannot read: %s)\n", argv[0], strerror(errno));
       abort();
     }
-    if (p[len - 1] == '\n')
-      p[--len] = '\0'; // remove trailing \n
+    while (isspace(p[len - 1]))
+      p[--len] = '\0'; // trim end
 
-    if (!password) {
+    if (!password)
       password = p;
-      passwordlen = len;
-    } else if (strcmp(password, p) != 0) {
+    else if (strcmp(password, p) != 0) {
       // confirm password failed
       fprintf(stderr, "(%s: mismatched password)\n", argv[0]);
       return EXIT_FAILURE;
-    } else {
+    } else
       free(p);
-    }
   }
 
   // make sure the user does not already exist
@@ -98,8 +97,8 @@ int main(int argc, char **argv) {
 
   // emplace new /etc/passwd entry
   char *homedir = malloc(sizeof(HOMEPREFIX) + loginlen);
-  strncpy(homedir, HOMEPREFIX, sizeof(HOMEPREFIX));
-  strncpy(&homedir[sizeof(HOMEPREFIX) - 1], login, loginlen + 1);
+  memcpy(homedir, HOMEPREFIX, sizeof(HOMEPREFIX));
+  memcpy(&homedir[sizeof(HOMEPREFIX) - 1], login, loginlen + 1);
   struct passwd newpwd = {0};
   newpwd.pw_name = login;
   newpwd.pw_passwd = hash ? "x" : "";

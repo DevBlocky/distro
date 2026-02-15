@@ -77,8 +77,8 @@ int main(int argc, char **argv) {
 
     struct listent *ent = &list[len++];
     ent->inode = dirent->d_ino;
-    ent->name = malloc(256 * sizeof(char));
-    strncpy(ent->name, dirent->d_name, sizeof(dirent->d_name));
+    ent->name = malloc(sizeof(dirent->d_name));
+    memcpy(ent->name, dirent->d_name, sizeof(dirent->d_name));
 
     struct stat statbuf;
     if (fstatat(dfd, ent->name, &statbuf, 0) != 0) {

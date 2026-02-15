@@ -34,6 +34,8 @@ rootfs: $(ALL_TARGETS)
 		./scripts/copy-libs.sh $$bin $(ROOTFS); \
 	done
 	@cp -a ./etc ./$(ROOTFS)/
+	@chmod 644 $(ROOTFS)/etc/*
+	@chmod 600 $(ROOTFS)/etc/shadow
 	@chmod u+s $(ROOTFS)/usr/bin/sudo
 
 Dockerfile: ;

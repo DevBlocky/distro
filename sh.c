@@ -14,6 +14,8 @@
 extern char **environ;
 char *shname;
 
+static void handlesig(int signo) { (void)signo; }
+
 static void strappend(char **buf, size_t *len, size_t *cap, char c) {
   if (*len >= *cap) {
     *cap = *cap ? *cap * 2 : 16;
@@ -49,7 +51,6 @@ static void freetokens(struct tokens *vec) {
 static int isoperator(char c) { return c == '>' || c == '<' || c == '|'; }
 static int isquote(char c) { return c == '"' || c == '\''; }
 static void tokenize(const unsigned char *inp, struct tokens *out) {
-  size_t cap = 0;
   while (*inp) {
     // move through spaces
     while (isspace(*inp))
@@ -159,7 +160,8 @@ static int mkpipeline(const struct tokens *tokens, struct pipeline *out) {
 
       // arguments are not allowed after redirection
       if (cmd.fin || cmd.fout) {
-        fprintf(stderr, "(%s: unexpected token \"%s\" after command)\n", shname, tok.str);
+        fprintf(stderr, "(%s: unexpected token \"%s\" after command)\n", shname,
+                tok.str);
         err = -3;
         goto done;
       }
@@ -218,6 +220,7 @@ static int execbuiltin(enum builtin typ, size_t argc, char **argv) {
     if (res < 0)
       fprintf(stderr, "(%s: cd: %s)\n", shname, strerror(errno));
     break;
+  case BUILTIN_NONE:
   }
   return res;
 }
@@ -227,7 +230,8 @@ static pid_t execcommand(const struct command *cmd, int in, int out) {
   if (typ != BUILTIN_NONE) {
     int status = execbuiltin(typ, cmd->argc, cmd->argv);
     if (status == -16)
-      fprintf(stderr, "(%s: %s: invalid number of arguments)\n", shname, cmdname);
+      fprintf(stderr, "(%s: %s: invalid number of arguments)\n", shname,
+              cmdname);
     return status;
   }
 
@@ -251,12 +255,20 @@ static pid_t execcommand(const struct command *cmd, int in, int out) {
     dup2(out, STDOUT_FILENO);
     close(out);
   }
+
+  struct sigaction dfl = {0};
+  dfl.sa_handler = SIG_DFL;
+  sigemptyset(&dfl.sa_mask);
+  dfl.sa_flags = 0;
+  sigaction(SIGINT, &dfl, NULL);
+  sigaction(SIGQUIT, &dfl, NULL);
+
   execvp(cmdname, cmd->argv);
   fprintf(stderr, "(%s: %s exec: %s)\n", shname, cmdname, strerror(errno));
   abort();
 }
 static int execpipeline(const struct pipeline *p) {
-  pid_t *pids = malloc(p->len * sizeof(pids));
+  pid_t *pids = malloc(p->len * sizeof(*pids));
 
   int pipefd[2] = {-1, -1};
   for (size_t i = 0; i < p->len; i++) {
@@ -273,7 +285,8 @@ static int execpipeline(const struct pipeline *p) {
     if (cmd->fin) {
       int fd = open(cmd->fin, O_RDONLY);
       if (fd < 0) {
-        fprintf(stderr, "(%s: could not open %s: %s)\n", shname, cmd->fin, strerror(errno));
+        fprintf(stderr, "(%s: could not open %s: %s)\n", shname, cmd->fin,
+                strerror(errno));
         return -1;
       }
       if (in >= 0)
@@ -306,11 +319,16 @@ static int execpipeline(const struct pipeline *p) {
       continue;
     char *cmdname = p->cmds[i].argv[0];
     int status;
-    if (waitpid(pids[i], &status, 0) < 0) {
+    while (waitpid(pids[i], &status, 0) < 0) {
+      if (errno == EINTR)
+        continue;
       fprintf(stderr, "(%s: %s: wait failed: %s)\n", shname, cmdname,
               strerror(errno));
-      continue;
+      status = -1;
+      break;
     }
+    if (status < 0)
+      continue;
     if (WIFSIGNALED(status)) {
       if (WTERMSIG(status) == SIGSEGV)
         fprintf(stderr, "(%s: %s: segmentation fault)\n", shname, cmdname);
@@ -318,15 +336,22 @@ static int execpipeline(const struct pipeline *p) {
         fprintf(stderr, "(%s: %s: aborted)\n", shname, cmdname);
     }
   }
+
+  free(pids);
   return 0;
 }
 
 int main(int argc, char **argv) {
-  // if (isatty(STDIN_FILENO)) {
-  //   signal(SIGINT, SIG_IGN);
-  //   signal(SIGQUIT, SIG_IGN);
-  // }
   shname = argv[0];
+
+  if (isatty(STDIN_FILENO)) {
+    struct sigaction sa = {0};
+    sa.sa_handler = handlesig;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGQUIT, &sa, NULL);
+  }
 
   char *line = NULL;
   size_t linesz = 0;
@@ -339,13 +364,18 @@ int main(int argc, char **argv) {
 
     read = getline(&line, &linesz, stdin);
     if (read < 0) {
+      if (errno == EINTR) {
+        clearerr(stdin);
+        putchar('\n');
+        continue;
+      }
       printf("(%s: could not read input: %s)\n", shname, strerror(errno));
       return EXIT_FAILURE;
     }
 
     // tokenize then parse pipeline
     struct tokens tokens = {0};
-    tokenize(line, &tokens);
+    tokenize((unsigned char *)line, &tokens);
     struct pipeline p = {0};
     int status = mkpipeline(&tokens, &p);
 

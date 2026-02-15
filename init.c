@@ -17,7 +17,6 @@ int main(void) {
   struct sigaction sa = {0};
   sa.sa_handler = onterm;
   sigaction(SIGTERM, &sa, NULL);
-  sigaction(SIGINT, &sa, NULL);
 
   pid_t pid = getpid();
   if (pid != 1) {
@@ -28,21 +27,21 @@ int main(void) {
   for (;;) {
     pid = fork();
     if (pid < 0) {
-      fprintf(stderr, "(init: cannot fork: %s)\n", strerror(errno));
+      fprintf(stderr, "(init: fork: %s)\n", strerror(errno));
       abort();
     }
     if (pid == 0) {
       // we are the child process, execve login
       char *const argv[] = {LOGIN, NULL};
       if (execve(LOGIN, argv, environ) < 0)
-        fprintf(stderr, "(init: cannot exec: %s)\n", strerror(errno));
+        fprintf(stderr, "(init: execve: %s)\n", strerror(errno));
       abort();
     }
 
     // wait for child process to exit
     int status;
     if (wait(&status) < 0) {
-      fprintf(stderr, "(init: cannot wait: %s)\n", strerror(errno));
+      fprintf(stderr, "(init: wait: %s)\n", strerror(errno));
       abort();
     }
     // log if child exited with bad condition

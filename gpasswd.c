@@ -91,6 +91,7 @@ int main(int argc, char **argv) {
     memset(&groups[len], 0, sizeof(groups[len]));
     groupdup(grp, &groups[len++]);
   }
+  endgrent();
   if (groupidx < 0) {
     fprintf(stderr, "(%s: group '%s' does not exist)\n", argv[0], group);
     return EXIT_FAILURE;
