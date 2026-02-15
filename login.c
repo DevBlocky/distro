@@ -37,9 +37,6 @@ int main(int argc, char **argv) {
     if (name[namelen - 1] == '\n')
       name[--namelen] = '\0'; // remove trailing \n
 
-    if (strcmp(name, "exit") == 0)
-      return EXIT_SUCCESS;
-
     printf("password: ");
     fflush(stdout);
     passwordlen = getpassword(&password, &passwordcap, stdin);

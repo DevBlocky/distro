@@ -20,7 +20,12 @@ int main(int argc, char **argv) {
     fprintf(stderr, "usage: %s <login>\n", argv[0]);
     return EXIT_FAILURE;
   }
-  for (char *check = argv[1]; *check != '\0'; check++) {
+  char *login = argv[1];
+  if (*login >= '0' && *login <= '9') {
+    fprintf(stderr, "(%s: login cannot start with number)\n", argv[0]);
+    return EXIT_FAILURE;
+  }
+  for (char *check = login; *check != '\0'; check++) {
     if ((*check < '0' || *check > '9') && (*check < 'a' || *check > 'z')) {
       fprintf(stderr, "(%s: login must be lowercase alphanumeric)\n", argv[0]);
       return EXIT_FAILURE;
@@ -59,7 +64,6 @@ int main(int argc, char **argv) {
   }
 
   // make sure the user does not already exist
-  char *login = argv[1];
   size_t loginlen = strlen(login);
   errno = 0;
   if (getpwnam(login) != NULL) {
