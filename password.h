@@ -40,8 +40,6 @@ static int __attribute__((unused)) checkpassword(struct passwd *pwd,
     if (shdw == NULL) {
       if (errno != 0)
         return -1;
-      // fprintf(stderr, "(%s: cannot getspnam: %s)\n", loginname,
-      //         strerror(errno));
       return 0;
     }
     passwd = shdw->sp_pwdp;
