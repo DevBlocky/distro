@@ -197,12 +197,15 @@ enum builtin {
   BUILTIN_NONE,
   BUILTIN_EXIT,
   BUILTIN_CD,
+  BUILTIN_CLEAR,
 };
 static enum builtin getbuiltin(const char *s) {
   if (strcmp(s, "exit") == 0)
     return BUILTIN_EXIT;
   if (strcmp(s, "cd") == 0)
     return BUILTIN_CD;
+  if (strcmp(s, "clear") == 0)
+    return BUILTIN_CLEAR;
   return BUILTIN_NONE;
 }
 static int execbuiltin(enum builtin typ, size_t argc, char **argv) {
@@ -219,6 +222,13 @@ static int execbuiltin(enum builtin typ, size_t argc, char **argv) {
     res = chdir(argv[1]);
     if (res < 0)
       fprintf(stderr, "(%s: cd: %s)\n", shname, strerror(errno));
+    break;
+  case BUILTIN_CLEAR:
+    if (argc != 1)
+      return -16;
+    // CSI commands: clear screen, return cursor to 1;1
+    if (isatty(STDOUT_FILENO))
+      printf("\033[2J\033[;H");
     break;
   case BUILTIN_NONE:
   }

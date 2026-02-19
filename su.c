@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
   oth = othpwd->pw_uid;
 
   // if not root uid, ask for password
-  uid_t cur = getuid();
+  uid_t cur = geteuid();
   if (cur != 0 && cur != oth) {
     char *password = NULL;
     size_t passwordcap = 0;

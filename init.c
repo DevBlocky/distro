@@ -46,10 +46,15 @@ int main(void) {
     }
     // log if child exited with bad condition
     if (WIFSIGNALED(status)) {
-      if (WTERMSIG(status) == SIGSEGV)
+      switch (WTERMSIG(status)) {
+      case SIGSEGV:
         fprintf(stderr, "(init: child segmentation fault)\n");
-      if (WTERMSIG(status) == SIGABRT)
+        abort();
+      case SIGABRT:
         fprintf(stderr, "(init: child aborted)\n");
+        abort();
+      default:
+      }
     }
   }
 }
