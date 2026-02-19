@@ -8,7 +8,7 @@ SRC_DIR := .
 ROOTFS := rootfs
 
 SBINS := init login adduser gpasswd kill shutdown
-BINS := sh echo ls cat env sleep segfault whoami sudo su gpasswd
+BINS := sh echo ls cat mv cp rm mkdir pwd env sleep segfault whoami sudo su gpasswd
 
 .PHONY: all build rootfs docker-build docker-run clean
 
@@ -37,8 +37,6 @@ rootfs: $(ALL_TARGETS)
 	@chmod 644 $(ROOTFS)/etc/*
 	@chmod 600 $(ROOTFS)/etc/shadow
 	@chmod u+s $(ROOTFS)/usr/bin/sudo $(ROOTFS)/usr/bin/su
-
-Dockerfile: ;
 
 docker-build: rootfs
 	docker build -t $(IMAGE) .
