@@ -4,10 +4,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define LOGIN "/usr/sbin/login"
+#define GETTY "/usr/sbin/getty"
 
 extern char **environ;
 
@@ -17,6 +18,7 @@ int main(void) {
   struct sigaction sa = {0};
   sa.sa_handler = onterm;
   sigaction(SIGTERM, &sa, NULL);
+  sigaction(SIGINT, &sa, NULL);
 
   pid_t pid = getpid();
   if (pid != 1) {
@@ -24,37 +26,44 @@ int main(void) {
     return EXIT_FAILURE;
   }
 
-  for (;;) {
-    pid = fork();
-    if (pid < 0) {
-      fprintf(stderr, "(init: fork: %s)\n", strerror(errno));
-      abort();
-    }
-    if (pid == 0) {
-      // we are the child process, execve login
-      char *const argv[] = {LOGIN, NULL};
-      if (execve(LOGIN, argv, environ) < 0)
-        fprintf(stderr, "(init: execve: %s)\n", strerror(errno));
-      abort();
-    }
-
-    // wait for child process to exit
-    int status;
-    if (wait(&status) < 0) {
-      fprintf(stderr, "(init: wait: %s)\n", strerror(errno));
-      abort();
-    }
-    // log if child exited with bad condition
-    if (WIFSIGNALED(status)) {
-      switch (WTERMSIG(status)) {
-      case SIGSEGV:
-        fprintf(stderr, "(init: child segmentation fault)\n");
-        abort();
-      case SIGABRT:
-        fprintf(stderr, "(init: child aborted)\n");
-        abort();
-      default:
-      }
-    }
+  char *ttyfile = ttyname(STDIN_FILENO);
+  // remove init pgrp as tty controller
+  if (tcgetpgrp(STDIN_FILENO) == getpgrp()) {
+    ioctl(STDIN_FILENO, TIOCNOTTY);
   }
+
+  // usually there would be more background programs
+  // spawned here, but we have no background tasks
+
+  // spawn getty (login+shell)
+  pid = fork();
+  if (pid < 0) {
+    fprintf(stderr, "(init: fork: %s)\n", strerror(errno));
+    abort();
+  }
+  if (pid == 0) {
+    char *const gettyargv[] = {GETTY, ttyfile, NULL};
+    if (execve(GETTY, gettyargv, environ) < 0)
+      fprintf(stderr, "(init: execve: %s)\n", strerror(errno));
+    abort();
+  }
+
+  // wait for getty to exit (should never happen)
+  int status;
+  if (wait(&status) < 0) {
+    fprintf(stderr, "(init: wait: %s)\n", strerror(errno));
+    abort();
+  }
+  switch (WIFSIGNALED(status) ? WTERMSIG(status) : -1) {
+  case SIGSEGV:
+    fprintf(stderr, "(init: child segmentation fault)\n");
+    break;
+  case SIGABRT:
+    fprintf(stderr, "(init: child aborted)\n");
+    break;
+  default:
+    fprintf(stderr, "(init: child exited with status %d)\n", status);
+  }
+
+  abort();
 }

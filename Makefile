@@ -7,7 +7,7 @@ LDLIBS ?=
 SRC_DIR := .
 ROOTFS := rootfs
 
-SBINS := init login adduser gpasswd kill shutdown
+SBINS := init getty login adduser gpasswd kill shutdown
 BINS := sh echo ls cat mv cp rm mkdir pwd env sleep segfault whoami sudo su gpasswd
 
 .PHONY: all build rootfs docker-build docker-run clean
